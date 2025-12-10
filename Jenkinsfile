@@ -135,18 +135,18 @@ pipeline {
       }
     }
 
-    stage('Kubernetes Deploy') {
-      steps {
-        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
-          sh '''
-            mkdir -p $HOME/.kube
-            cp "$KUBECONFIG_FILE" "$HOME/.kube/config"
-            export KUBECONFIG="$HOME/.kube/config"
-          '''
-          sh "ansible-playbook -i inventory-k8 playbook-k8.yml --extra-vars \"frontend_image=${env.FRONTEND_IMAGE} backend_image=${env.BACKEND_IMAGE}\""
-        }
-      }
-    }
+    // stage('Kubernetes Deploy') {
+    //   steps {
+    //     withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
+    //       sh '''
+    //         mkdir -p $HOME/.kube
+    //         cp "$KUBECONFIG_FILE" "$HOME/.kube/config"
+    //         export KUBECONFIG="$HOME/.kube/config"
+    //       '''
+    //       sh "ansible-playbook -i inventory-k8 playbook-k8.yml --extra-vars \"frontend_image=${env.FRONTEND_IMAGE} backend_image=${env.BACKEND_IMAGE}\""
+    //     }
+    //   }
+    // }
   }
 
   post {
