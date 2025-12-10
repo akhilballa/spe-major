@@ -81,11 +81,17 @@ pipeline {
   stages {
 
     /* ---------------------- GIT CLONE ---------------------- */
+    // stage('Clone Git Repository') {
+    //   steps {
+    //     git branch: 'main', url: 'https://github.com/akhilballa/spe-major'
+    //   }
+    // }
     stage('Clone Git Repository') {
-      steps {
-        git branch: 'main', url: 'https://github.com/akhilballa/spe-major'
-      }
+        steps {
+            echo "Using Jenkins' default SCM checkout"
+        }
     }
+
 
     /* ---------------------- BUILD FRONTEND ---------------------- */
     stage('Build Frontend Image') {
