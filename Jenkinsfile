@@ -63,6 +63,7 @@
 //     }
 // }
 
+
 pipeline {
   agent any
 
@@ -80,24 +81,18 @@ pipeline {
 
   stages {
 
-    /* ---------------------- GIT CLONE ---------------------- */
-    // stage('Clone Git Repository') {
-    //   steps {
-    //     git branch: 'main', url: 'https://github.com/akhilballa/spe-major'
-    //   }
-    // }
-    stage('Clone Git Repository') {
-        steps {
-            echo "Using Jenkins' default SCM checkout"
-        }
+    stage('Init / Checkout') {
+      steps {
+        // The pipeline SCM checkout (Jenkins already performed at start)
+        echo "Using existing workspace checkout (Jenkins' SCM)"
+        // if you want explicit re-checkout, uncomment:
+        // checkout scm
+      }
     }
 
-
-    /* ---------------------- BUILD FRONTEND ---------------------- */
     stage('Build Frontend Image') {
       steps {
         dir('client') {
-          sh 'npm ci'
           script {
             env.FRONTEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
             sh "docker build -t ${env.FRONTEND_IMAGE} ."
@@ -106,11 +101,9 @@ pipeline {
       }
     }
 
-    /* ---------------------- BUILD BACKEND ---------------------- */
     stage('Build Backend Image') {
       steps {
         dir('server') {
-          sh 'npm ci'
           script {
             env.BACKEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
             sh "docker build -t ${env.BACKEND_IMAGE} ."
@@ -119,7 +112,6 @@ pipeline {
       }
     }
 
-    /* ---------------------- PUSH TO DOCKER HUB ---------------------- */
     stage('Push to Docker Hub') {
       steps {
         withCredentials([
@@ -129,37 +121,28 @@ pipeline {
             passwordVariable: 'DOCKER_PASS'
           )
         ]) {
-
           sh 'echo "$DOCKER_PASS" | docker login --username "$DOCKER_USER" --password-stdin'
-
           sh "docker push ${env.FRONTEND_IMAGE}"
           sh "docker push ${env.BACKEND_IMAGE}"
-
           sh 'docker logout'
         }
       }
     }
 
-    /* ---------------------- INSTALL ANSIBLE DEPENDENCIES ---------------------- */
-    stage('Install Dependencies') {
+    stage('Install Ansible Dependencies') {
       steps {
         sh 'ansible-galaxy collection install kubernetes.core'
       }
     }
 
-    /* ---------------------- KUBERNETES DEPLOY ---------------------- */
     stage('Kubernetes Deploy') {
       steps {
-        withCredentials([
-          file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')
-        ]) {
-
+        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
           sh '''
             mkdir -p $HOME/.kube
             cp "$KUBECONFIG_FILE" "$HOME/.kube/config"
             export KUBECONFIG="$HOME/.kube/config"
           '''
-
           sh "ansible-playbook -i inventory-k8 playbook-k8.yml --extra-vars \"frontend_image=${env.FRONTEND_IMAGE} backend_image=${env.BACKEND_IMAGE}\""
         }
       }
