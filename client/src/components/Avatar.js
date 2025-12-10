@@ -85,7 +85,6 @@ const Avatar = ({ userId, name, imageUrl, width, height }) => {
             ? splitName[0][0] + splitName[1][0] 
             : splitName[0][0];
     }
-
     // Check if the user is online
     const isOnline = onlineUser.includes(userId);
 
