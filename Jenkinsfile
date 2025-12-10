@@ -83,7 +83,7 @@ pipeline {
     /* ---------------------- GIT CLONE ---------------------- */
     stage('Clone Git Repository') {
       steps {
-        git branch: 'main', url: 'https://github.com/akhilballa112/spe-major.git'
+        git branch: 'main', url: 'https://github.com/akhilballa/spe-major'
       }
     }
 
