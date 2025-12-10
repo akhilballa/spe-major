@@ -10,4 +10,4 @@ const Divider = () => {
 
 export default Divider
 
-// gandu
+// gandu ok
