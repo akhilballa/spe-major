@@ -163,38 +163,22 @@
 
 
 
-// pipeline {
-//   agent any
-//   stages {
-//     stage('Check Docker') {
-//       steps {
-//         sh '''
-//           echo "User: $(whoami)"
-//           echo "PATH=$PATH"
-//           which docker || true
-//           docker --version || true
-//           docker ps || true
-//         '''
-//       }
-//     }
-//   }
-// }
-
-
 pipeline {
   agent any
   stages {
-    stage('Docker check') {
+    stage('Check Docker') {
       steps {
         sh '''
-          echo "whoami: $(whoami)"
-          echo "HOME: $HOME"
-          echo "PATH: $PATH"
-          which docker || echo "docker not on PATH"
-          docker --version || echo "docker not runnable"
-          docker ps || echo "docker ps failed"
+          echo "User: $(whoami)"
+          echo "PATH=$PATH"
+          which docker || true
+          docker --version || true
+          docker ps || true
         '''
       }
     }
   }
 }
+
+
+
