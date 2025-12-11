@@ -359,12 +359,6 @@ pipeline {
     PORT = '8080'
   }
 
-  options {
-    ansiColor('xterm')
-    skipDefaultCheckout(true)
-    timestamps()
-  }
-
   stages {
 
     stage('Checkout') {
