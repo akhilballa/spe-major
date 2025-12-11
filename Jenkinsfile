@@ -161,6 +161,11 @@
 //   }
 // }
 
+environment {
+  DOCKER_BIN = '/usr/local/bin/docker'
+  DOCKER_REPO = 'akhilballa112'
+  REPO_NAME = 'chat-app'
+}
 
 
 pipeline {
