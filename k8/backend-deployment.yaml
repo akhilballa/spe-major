@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: akhilballa112/chat-app:backend-latest
+          image: akhilballa112/chat-app:backend
           imagePullPolicy: Always
           resources:
             limits:
