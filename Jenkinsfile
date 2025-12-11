@@ -234,7 +234,7 @@ pipeline {
           sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
           sh "${DOCKER_BIN} push ${env.FRONTEND_IMAGE}"
           sh "${DOCKER_BIN} push ${env.BACKEND_IMAGE}"
-          sh "${DOCKER_BIN} logout"
+          sh "${DOCKER_BIN} logout || true"
         }
       }
     }
