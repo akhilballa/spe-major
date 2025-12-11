@@ -193,13 +193,33 @@ pipeline {
         echo "Checked out ${env.GIT_COMMIT ?: 'workspace'}"
       }
     }
+    // stage('Docker Login') {
+    //   steps {
+    //     withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+    //     sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
+    //     }
+    //   }
+    // } 
     stage('Docker Login') {
       steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-        sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+                                          usernameVariable: 'DOCKER_USER',
+                                          passwordVariable: 'DOCKER_PASS')]) {
+          script {
+            sh """
+              DCFG="${WORKSPACE}/.docker-temp"
+              rm -rf "$DCFG"
+              mkdir -p "$DCFG"
+              echo '{}' > "$DCFG/config.json"
+              # login using temp config so docker won't try to exec host credential helpers
+              printf "%s" "$DOCKER_PASS" | ${DOCKER_BIN} --config "$DCFG" login --username "$DOCKER_USER" --password-stdin
+            """
+            env.DOCKER_BUILD_CONFIG = "${WORKSPACE}/.docker-temp"
+          }
         }
       }
-  } 
+    }
+
 
 
     stage('Build Frontend Image') {
