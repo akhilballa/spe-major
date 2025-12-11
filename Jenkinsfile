@@ -492,16 +492,172 @@
 
 
 
+
+
+// pipeline {
+//   agent any
+
+//   environment {
+//     DOCKER_BIN = '/usr/local/bin/docker'
+//     DOCKER_REPO = 'akhilballa112'
+//     REPO_NAME   = 'chat-app'
+
+//     // Path where temporary Docker credentials are stored
+//     DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
+//   }
+
+//   stages {
+
+//     stage('Checkout') {
+//       steps {
+//         checkout scm
+//         echo "Checked out commit: ${env.GIT_COMMIT ?: 'unknown'}"
+//       }
+//     }
+
+//     stage('Prepare Docker Login') {
+//       steps {
+//         withCredentials([usernamePassword(
+//             credentialsId: 'docker-hub-creds',
+//             usernameVariable: 'DOCKER_USER',
+//             passwordVariable: 'DOCKER_PASS'
+//         )]) {
+
+//           sh '''
+//             rm -rf "${DOCKER_BUILD_CONFIG}"
+//             mkdir -p "${DOCKER_BUILD_CONFIG}"
+
+//             cat > "${DOCKER_BUILD_CONFIG}/config.json" <<'JSON'
+// {
+//   "auths": {
+//     "https://index.docker.io/v1/": {}
+//   },
+//   "credsStore": ""
+// }
+// JSON
+
+//             echo "Logging in..."
+//             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Build Frontend Image') {
+//       steps {
+//         dir('client') {
+//           script {
+//             env.FRONTEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
+//             env.FRONTEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:frontend-latest"
+//           }
+
+//           sh '''
+//             echo "Building FE image: ${FRONTEND_VERSIONED}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_VERSIONED}" .
+
+//             echo "Tagging FE image as latest"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${FRONTEND_VERSIONED}" "${FRONTEND_LATEST}"
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Build Backend Image') {
+//       steps {
+//         dir('server') {
+//           script {
+//             env.BACKEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
+//             env.BACKEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:backend-latest"
+//           }
+
+//           sh '''
+//             echo "Building BE image: ${BACKEND_VERSIONED}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_VERSIONED}" .
+
+//             echo "Tagging BE image as latest"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${BACKEND_VERSIONED}" "${BACKEND_LATEST}"
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Push Images') {
+//       steps {
+//         withCredentials([usernamePassword(
+//             credentialsId: 'docker-hub-creds',
+//             usernameVariable: 'DOCKER_USER',
+//             passwordVariable: 'DOCKER_PASS'
+//         )]) {
+
+//           sh '''
+//             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+
+//             echo "Pushing frontend images..."
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_VERSIONED}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_LATEST}"
+
+//             echo "Pushing backend images..."
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_VERSIONED}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_LATEST}"
+
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" logout || true
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Deploy to Kubernetes') {
+//       when {
+//         expression { fileExists("k8s") }
+//       }
+//       steps {
+//         sh '''
+//           echo "Applying Kubernetes manifests..."
+//           kubectl apply -f k8s/
+//         '''
+//       }
+//     }
+
+//     stage('Clean Docker Temp') {
+//       steps {
+//         sh '''
+//           rm -rf "${DOCKER_BUILD_CONFIG}"
+//           echo "Cleaned Docker temp."
+//         '''
+//       }
+//     }
+//   }
+
+//   post {
+//     always {
+//       echo "Build #${env.BUILD_NUMBER} completed."
+//       echo "FE Image (versioned): ${env.FRONTEND_VERSIONED}"
+//       echo "FE Image (latest):    ${env.FRONTEND_LATEST}"
+//       echo "BE Image (versioned): ${env.BACKEND_VERSIONED}"
+//       echo "BE Image (latest):    ${env.BACKEND_LATEST}"
+//     }
+//   }
+// }
+
+
+
+
+
+
+
+
+
 pipeline {
   agent any
 
   environment {
     DOCKER_BIN = '/usr/local/bin/docker'
+
     DOCKER_REPO = 'akhilballa112'
     REPO_NAME   = 'chat-app'
 
-    // Path where temporary Docker credentials are stored
-    DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
+    FRONTEND_TAG = 'frontend'
+    BACKEND_TAG  = 'backend'
   }
 
   stages {
@@ -515,11 +671,13 @@ pipeline {
 
     stage('Prepare Docker Login') {
       steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'docker-hub-creds',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+                                          usernameVariable: 'DOCKER_USER',
+                                          passwordVariable: 'DOCKER_PASS')]) {
+
+          script {
+            env.DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
+          }
 
           sh '''
             rm -rf "${DOCKER_BUILD_CONFIG}"
@@ -534,8 +692,9 @@ pipeline {
 }
 JSON
 
-            echo "Logging in..."
+            echo "Logging in to Docker Hub..."
             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+            echo "Docker login successful."
           '''
         }
       }
@@ -545,16 +704,12 @@ JSON
       steps {
         dir('client') {
           script {
-            env.FRONTEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
-            env.FRONTEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:frontend-latest"
+            env.FRONTEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:${FRONTEND_TAG}"
           }
 
           sh '''
-            echo "Building FE image: ${FRONTEND_VERSIONED}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_VERSIONED}" .
-
-            echo "Tagging FE image as latest"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${FRONTEND_VERSIONED}" "${FRONTEND_LATEST}"
+            echo "Building frontend image: ${FRONTEND_IMAGE}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_IMAGE}" .
           '''
         }
       }
@@ -564,39 +719,32 @@ JSON
       steps {
         dir('server') {
           script {
-            env.BACKEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
-            env.BACKEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:backend-latest"
+            env.BACKEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:${BACKEND_TAG}"
           }
 
           sh '''
-            echo "Building BE image: ${BACKEND_VERSIONED}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_VERSIONED}" .
-
-            echo "Tagging BE image as latest"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${BACKEND_VERSIONED}" "${BACKEND_LATEST}"
+            echo "Building backend image: ${BACKEND_IMAGE}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_IMAGE}" .
           '''
         }
       }
     }
 
-    stage('Push Images') {
+    stage('Push Images to Docker Hub') {
       steps {
-        withCredentials([usernamePassword(
-            credentialsId: 'docker-hub-creds',
-            usernameVariable: 'DOCKER_USER',
-            passwordVariable: 'DOCKER_PASS'
-        )]) {
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+                                          usernameVariable: 'DOCKER_USER',
+                                          passwordVariable: 'DOCKER_PASS')]) {
 
           sh '''
+            echo "Ensuring login before push..."
             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
 
-            echo "Pushing frontend images..."
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_VERSIONED}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_LATEST}"
+            echo "Pushing frontend latest..."
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_IMAGE}"
 
-            echo "Pushing backend images..."
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_VERSIONED}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_LATEST}"
+            echo "Pushing backend latest..."
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_IMAGE}"
 
             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" logout || true
           '''
@@ -604,23 +752,11 @@ JSON
       }
     }
 
-    stage('Deploy to Kubernetes') {
-      when {
-        expression { fileExists("k8s") }
-      }
+    stage('Cleanup') {
       steps {
         sh '''
-          echo "Applying Kubernetes manifests..."
-          kubectl apply -f k8s/
-        '''
-      }
-    }
-
-    stage('Clean Docker Temp') {
-      steps {
-        sh '''
-          rm -rf "${DOCKER_BUILD_CONFIG}"
-          echo "Cleaned Docker temp."
+          rm -rf "${DOCKER_BUILD_CONFIG}" || true
+          echo "Cleaned Docker temp config."
         '''
       }
     }
@@ -628,11 +764,9 @@ JSON
 
   post {
     always {
-      echo "Build #${env.BUILD_NUMBER} completed."
-      echo "FE Image (versioned): ${env.FRONTEND_VERSIONED}"
-      echo "FE Image (latest):    ${env.FRONTEND_LATEST}"
-      echo "BE Image (versioned): ${env.BACKEND_VERSIONED}"
-      echo "BE Image (latest):    ${env.BACKEND_LATEST}"
+      echo "Build finished."
+      echo "Frontend pushed as: ${env.FRONTEND_IMAGE}"
+      echo "Backend pushed as : ${env.BACKEND_IMAGE}"
     }
   }
 }
