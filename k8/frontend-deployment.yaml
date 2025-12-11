@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: asrith1158/frontend-image:latest
+          image: akhilballa112/chat-app:frontend-35
           ports:
-            - containerPort: 3000
+            - containerPort: 80
+  
 

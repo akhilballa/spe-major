@@ -340,23 +340,168 @@
 
 
 
+
+// RUNNING VERSION     ****
+
+// pipeline {
+//   agent any
+
+//   environment {
+//     // Docker binary (use absolute path so Jenkins finds it even if PATH is weird)
+//     DOCKER_BIN = '/usr/local/bin/docker'
+
+//     // Docker repo info
+//     DOCKER_REPO = 'akhilballa112'
+//     REPO_NAME   = 'chat-app'
+
+//     // App envs (only illustrative; do NOT store secrets here)
+//     FRONTEND_URL = 'http://localhost:3000'
+//     REACT_APP_CLOUDINARY_CLOUD_NAME = 'dc5tnb82m'
+//     REACT_APP_BACKEND_URL = 'http://localhost:8080'
+//     MONGODB_URI = 'mongodb://host.docker.internal:27017/'
+//     PORT = '8080'
+//   }
+
+//   stages {
+
+//     stage('Checkout') {
+//       steps {
+//         checkout scm
+//         echo "Checked out commit: ${env.GIT_COMMIT ?: 'unknown'}"
+//       }
+//     }
+
+//     stage('Prepare Docker config & Login') {
+//       steps {
+//         // create a temp docker config in workspace and login using Jenkins credentials
+//         withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+//                                           usernameVariable: 'DOCKER_USER',
+//                                           passwordVariable: 'DOCKER_PASS')]) {
+//           script {
+//             // set a workspace-local docker config path for subsequent docker calls
+//             env.DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
+//           }
+
+//           // Use shell block without Groovy interpolation for secrets
+//           sh '''
+//             # remove any old temp config, create fresh one
+//             rm -rf "${DOCKER_BUILD_CONFIG}"
+//             mkdir -p "${DOCKER_BUILD_CONFIG}"
+
+//             # minimal config.json so docker CLI won't attempt to call host credential helpers
+//             cat > "${DOCKER_BUILD_CONFIG}/config.json" <<'JSON'
+// {
+//   "auths": {
+//     "https://index.docker.io/v1/": {}
+//   },
+//   "credsStore": ""
+// }
+// JSON
+
+//             echo "Logging into Docker Hub (using temp config)..."
+//             # login using stdin so password isn't leaked in args
+//             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+//             echo "Docker login succeeded and temp config written to: ${DOCKER_BUILD_CONFIG}"
+//             ls -la "${DOCKER_BUILD_CONFIG}"
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Build Frontend Image') {
+//       steps {
+//         dir('client') {
+//           script {
+//             env.FRONTEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
+//           }
+//           // build using the temp config so host credential helpers are not invoked
+//           sh '''
+//             echo "Building frontend image: ${FRONTEND_IMAGE}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_IMAGE}" .
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Build Backend Image') {
+//       steps {
+//         dir('server') {
+//           script {
+//             env.BACKEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
+//           }
+//           sh '''
+//             echo "Building backend image: ${BACKEND_IMAGE}"
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_IMAGE}" .
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Push Images to Docker Hub') {
+//       steps {
+//         // use same credentials again just to be safe (secure binding)
+//         withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+//                                           usernameVariable: 'DOCKER_USER',
+//                                           passwordVariable: 'DOCKER_PASS')]) {
+//           sh '''
+//             echo "Ensuring login before push..."
+//             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+
+//             echo "Pushing ${FRONTEND_IMAGE}..."
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_IMAGE}"
+
+//             echo "Pushing ${BACKEND_IMAGE}..."
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_IMAGE}"
+
+//             # logout best-effort
+//             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" logout || true
+//           '''
+//         }
+//       }
+//     }
+
+//     stage('Install Ansible deps (optional)') {
+//       steps {
+//         // won't fail the build if collection already present or ansible not installed
+//         sh 'ansible-galaxy collection install kubernetes.core || true'
+//       }
+//     }
+
+//     stage('Cleanup workspace docker config') {
+//       steps {
+//         sh '''
+//           # remove temp docker config to avoid leaving secrets in workspace
+//           rm -rf "${DOCKER_BUILD_CONFIG}" || true
+//           echo "Cleaned up Docker temp config."
+//         '''
+//       }
+//     }
+//   }
+
+//   post {
+//     always {
+//       echo "Build #${env.BUILD_NUMBER} finished."
+//       echo "Frontend image: ${env.FRONTEND_IMAGE ?: 'N/A'}"
+//       echo "Backend image : ${env.BACKEND_IMAGE ?: 'N/A'}"
+//     }
+//     failure {
+//       echo "Pipeline failed. Check logs above for the first failing error."
+//     }
+//   }
+// }
+
+
+
 pipeline {
   agent any
 
   environment {
-    // Docker binary (use absolute path so Jenkins finds it even if PATH is weird)
     DOCKER_BIN = '/usr/local/bin/docker'
-
-    // Docker repo info
     DOCKER_REPO = 'akhilballa112'
     REPO_NAME   = 'chat-app'
 
-    // App envs (only illustrative; do NOT store secrets here)
-    FRONTEND_URL = 'http://localhost:3000'
-    REACT_APP_CLOUDINARY_CLOUD_NAME = 'dc5tnb82m'
-    REACT_APP_BACKEND_URL = 'http://localhost:8080'
-    MONGODB_URI = 'mongodb://host.docker.internal:27017/'
-    PORT = '8080'
+    // Path where temporary Docker credentials are stored
+    DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
   }
 
   stages {
@@ -368,24 +513,18 @@ pipeline {
       }
     }
 
-    stage('Prepare Docker config & Login') {
+    stage('Prepare Docker Login') {
       steps {
-        // create a temp docker config in workspace and login using Jenkins credentials
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
-                                          usernameVariable: 'DOCKER_USER',
-                                          passwordVariable: 'DOCKER_PASS')]) {
-          script {
-            // set a workspace-local docker config path for subsequent docker calls
-            env.DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
-          }
+        withCredentials([usernamePassword(
+            credentialsId: 'docker-hub-creds',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )]) {
 
-          // Use shell block without Groovy interpolation for secrets
           sh '''
-            # remove any old temp config, create fresh one
             rm -rf "${DOCKER_BUILD_CONFIG}"
             mkdir -p "${DOCKER_BUILD_CONFIG}"
 
-            # minimal config.json so docker CLI won't attempt to call host credential helpers
             cat > "${DOCKER_BUILD_CONFIG}/config.json" <<'JSON'
 {
   "auths": {
@@ -395,11 +534,8 @@ pipeline {
 }
 JSON
 
-            echo "Logging into Docker Hub (using temp config)..."
-            # login using stdin so password isn't leaked in args
+            echo "Logging in..."
             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
-            echo "Docker login succeeded and temp config written to: ${DOCKER_BUILD_CONFIG}"
-            ls -la "${DOCKER_BUILD_CONFIG}"
           '''
         }
       }
@@ -409,12 +545,16 @@ JSON
       steps {
         dir('client') {
           script {
-            env.FRONTEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
+            env.FRONTEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:frontend-${env.BUILD_NUMBER}"
+            env.FRONTEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:frontend-latest"
           }
-          // build using the temp config so host credential helpers are not invoked
+
           sh '''
-            echo "Building frontend image: ${FRONTEND_IMAGE}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_IMAGE}" .
+            echo "Building FE image: ${FRONTEND_VERSIONED}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_VERSIONED}" .
+
+            echo "Tagging FE image as latest"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${FRONTEND_VERSIONED}" "${FRONTEND_LATEST}"
           '''
         }
       }
@@ -424,52 +564,63 @@ JSON
       steps {
         dir('server') {
           script {
-            env.BACKEND_IMAGE = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
+            env.BACKEND_VERSIONED = "${DOCKER_REPO}/${REPO_NAME}:backend-${env.BUILD_NUMBER}"
+            env.BACKEND_LATEST    = "${DOCKER_REPO}/${REPO_NAME}:backend-latest"
           }
+
           sh '''
-            echo "Building backend image: ${BACKEND_IMAGE}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_IMAGE}" .
+            echo "Building BE image: ${BACKEND_VERSIONED}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${BACKEND_VERSIONED}" .
+
+            echo "Tagging BE image as latest"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" tag "${BACKEND_VERSIONED}" "${BACKEND_LATEST}"
           '''
         }
       }
     }
 
-    stage('Push Images to Docker Hub') {
+    stage('Push Images') {
       steps {
-        // use same credentials again just to be safe (secure binding)
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
-                                          usernameVariable: 'DOCKER_USER',
-                                          passwordVariable: 'DOCKER_PASS')]) {
+        withCredentials([usernamePassword(
+            credentialsId: 'docker-hub-creds',
+            usernameVariable: 'DOCKER_USER',
+            passwordVariable: 'DOCKER_PASS'
+        )]) {
+
           sh '''
-            echo "Ensuring login before push..."
             printf "%s" "$DOCKER_PASS" | "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
 
-            echo "Pushing ${FRONTEND_IMAGE}..."
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_IMAGE}"
+            echo "Pushing frontend images..."
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_VERSIONED}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${FRONTEND_LATEST}"
 
-            echo "Pushing ${BACKEND_IMAGE}..."
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_IMAGE}"
+            echo "Pushing backend images..."
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_VERSIONED}"
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" push "${BACKEND_LATEST}"
 
-            # logout best-effort
             "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" logout || true
           '''
         }
       }
     }
 
-    stage('Install Ansible deps (optional)') {
+    stage('Deploy to Kubernetes') {
+      when {
+        expression { fileExists("k8s") }
+      }
       steps {
-        // won't fail the build if collection already present or ansible not installed
-        sh 'ansible-galaxy collection install kubernetes.core || true'
+        sh '''
+          echo "Applying Kubernetes manifests..."
+          kubectl apply -f k8s/
+        '''
       }
     }
 
-    stage('Cleanup workspace docker config') {
+    stage('Clean Docker Temp') {
       steps {
         sh '''
-          # remove temp docker config to avoid leaving secrets in workspace
-          rm -rf "${DOCKER_BUILD_CONFIG}" || true
-          echo "Cleaned up Docker temp config."
+          rm -rf "${DOCKER_BUILD_CONFIG}"
+          echo "Cleaned Docker temp."
         '''
       }
     }
@@ -477,12 +628,11 @@ JSON
 
   post {
     always {
-      echo "Build #${env.BUILD_NUMBER} finished."
-      echo "Frontend image: ${env.FRONTEND_IMAGE ?: 'N/A'}"
-      echo "Backend image : ${env.BACKEND_IMAGE ?: 'N/A'}"
-    }
-    failure {
-      echo "Pipeline failed. Check logs above for the first failing error."
+      echo "Build #${env.BUILD_NUMBER} completed."
+      echo "FE Image (versioned): ${env.FRONTEND_VERSIONED}"
+      echo "FE Image (latest):    ${env.FRONTEND_LATEST}"
+      echo "BE Image (versioned): ${env.BACKEND_VERSIONED}"
+      echo "BE Image (latest):    ${env.BACKEND_LATEST}"
     }
   }
 }
