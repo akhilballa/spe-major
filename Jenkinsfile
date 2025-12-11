@@ -185,12 +185,6 @@ pipeline {
     PORT = '8080'
   }
 
-  options {
-    // keep logs small; adjust as needed
-    ansiColor('xterm')
-    skipDefaultCheckout(true) // we'll do explicit checkout
-  }
-
   stages {
 
     stage('Checkout') {
