@@ -16,6 +16,7 @@ spec:
       containers:
         - name: backend
           image: akhilballa112/chat-app:backend-latest
+          imagePullPolicy: Always
           resources:
             limits:
               memory: "128Mi"
