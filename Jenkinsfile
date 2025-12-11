@@ -193,6 +193,14 @@ pipeline {
         echo "Checked out ${env.GIT_COMMIT ?: 'workspace'}"
       }
     }
+    stage('Docker Login') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+        sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
+        }
+      }
+  } 
+
 
     stage('Build Frontend Image') {
       steps {
@@ -238,22 +246,22 @@ pipeline {
       }
     }
 
-    stage('Kubernetes Deploy (optional)') {
-      when {
-        expression { return fileExists('playbook-k8.yml') }
-      }
-      steps {
-        // optional: provide kubeconfig-file credential in Jenkins (Secret file)
-        withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
-          sh '''
-            mkdir -p $HOME/.kube
-            cp "$KUBECONFIG_FILE" "$HOME/.kube/config"
-            export KUBECONFIG="$HOME/.kube/config"
-            ansible-playbook -i inventory-k8 playbook-k8.yml --extra-vars "frontend_image=${FRONTEND_IMAGE} backend_image=${BACKEND_IMAGE}"
-          '''
-        }
-      }
-    }
+    // stage('Kubernetes Deploy (optional)') {
+    //   when {
+    //     expression { return fileExists('playbook-k8.yml') }
+    //   }
+    //   steps {
+    //     // optional: provide kubeconfig-file credential in Jenkins (Secret file)
+    //     withCredentials([file(credentialsId: 'kubeconfig-file', variable: 'KUBECONFIG_FILE')]) {
+    //       sh '''
+    //         mkdir -p $HOME/.kube
+    //         cp "$KUBECONFIG_FILE" "$HOME/.kube/config"
+    //         export KUBECONFIG="$HOME/.kube/config"
+    //         ansible-playbook -i inventory-k8 playbook-k8.yml --extra-vars "frontend_image=${FRONTEND_IMAGE} backend_image=${BACKEND_IMAGE}"
+    //       '''
+    //     }
+    //   }
+    // }
   }
 
   post {
