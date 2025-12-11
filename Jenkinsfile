@@ -200,25 +200,47 @@ pipeline {
     //     }
     //   }
     // } 
+    // stage('Docker Login') {
+    //   steps {
+    //     withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+    //                                       usernameVariable: 'DOCKER_USER',
+    //                                       passwordVariable: 'DOCKER_PASS')]) {
+    //       script {
+    //         sh """
+    //           DCFG="${WORKSPACE}/.docker-temp"
+    //           rm -rf "$DCFG"
+    //           mkdir -p "$DCFG"
+    //           echo '{}' > "$DCFG/config.json"
+    //           # login using temp config so docker won't try to exec host credential helpers
+    //           printf "%s" "$DOCKER_PASS" | ${DOCKER_BIN} --config "$DCFG" login --username "$DOCKER_USER" --password-stdin
+    //         """
+    //         env.DOCKER_BUILD_CONFIG = "${WORKSPACE}/.docker-temp"
+    //       }
+    //     }
+    //   }
+    // }
     stage('Docker Login') {
-      steps {
-        withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
-                                          usernameVariable: 'DOCKER_USER',
-                                          passwordVariable: 'DOCKER_PASS')]) {
-          script {
-            sh """
-              DCFG="${WORKSPACE}/.docker-temp"
-              rm -rf "$DCFG"
-              mkdir -p "$DCFG"
-              echo '{}' > "$DCFG/config.json"
-              # login using temp config so docker won't try to exec host credential helpers
-              printf "%s" "$DOCKER_PASS" | ${DOCKER_BIN} --config "$DCFG" login --username "$DOCKER_USER" --password-stdin
-            """
-            env.DOCKER_BUILD_CONFIG = "${WORKSPACE}/.docker-temp"
-          }
-        }
-      }
-    }
+  steps {
+    withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
+                                      usernameVariable: 'DOCKER_USER',
+                                      passwordVariable: 'DOCKER_PASS')]) {
+      script {
+        // define the config path in Groovy and export it for later stages
+        env.DOCKER_BUILD_CONFIG = "${env.WORKSPACE}/.docker-temp"
+
+        // create temp config and login using that config (so docker won't call desktop helper)
+        sh """
+          rm -rf "${env.DOCKER_BUILD_CONFIG}"
+          mkdir -p "${env.DOCKER_BUILD_CONFIG}"
+          echo '{}' > "${env.DOCKER_BUILD_CONFIG}/config.json"
+          printf "%s" "$DOCKER_PASS" | ${DOCKER_BIN} --config "${env.DOCKER_BUILD_CONFIG}" login --username "$DOCKER_USER" --password-stdin
+          ls -la "${env.DOCKER_BUILD_CONFIG}"
+        """
+      } // end script
+    } // end withCredentials
+  } // end steps
+} // end stage
+
 
 
 
@@ -251,7 +273,8 @@ pipeline {
       steps {
         // create a Jenkins credential of kind "Username with password" or token and set id docker-hub-creds
         withCredentials([usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-          sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
+          // sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} login --username "$DOCKER_USER" --password-stdin'
+          sh 'echo "$DOCKER_PASS" | ${DOCKER_BIN} --config ${env.DOCKER_BUILD_CONFIG} login --username "$DOCKER_USER" --password-stdin'
           sh "${DOCKER_BIN} push ${env.FRONTEND_IMAGE}"
           sh "${DOCKER_BIN} push ${env.BACKEND_IMAGE}"
           sh "${DOCKER_BIN} logout || true"
