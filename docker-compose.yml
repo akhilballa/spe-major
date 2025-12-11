@@ -1,22 +1,24 @@
 services:
   frontend:
-    image: akhilballa112/chat-app:frontend    # change
+    image: akhilballa112/chat-app:frontend-35    # change
+    container_name: chat-frontend
     restart: always
     ports:
-      - "3000:3000"
+      - "3000:80"
     environment:
       REACT_APP_CLOUDINARY_CLOUD_NAME: dc5tnb82m       # change
-      REACT_APP_BACKEND_URL: http://localhost:8080  
+      REACT_APP_BACKEND_URL: http://localhost:8081  
     depends_on:
       - backend
     networks:
       - app-network
 
   backend:
-    image: akhilballa112/chat-app:backend         # change
+    image: akhilballa112/chat-app:backend-35      # change
+    container_name: chat-backend
     restart: always
     ports:
-      - "8080:8080"
+      - "8081:8080"
     environment:
       MONGODB_URI: mongodb://localhost:27017/
       JWT_SECRET_KEY: jhdcjhsdvchjsdhbfasdgbvs    
