@@ -1,12 +1,12 @@
 services:
   frontend:
-    image: akhilballa112/chat-app:frontend-35    # change
+    image: akhilballa112/chat-app:frontend-35    
     container_name: chat-frontend
     restart: always
     ports:
       - "3000:80"
     environment:
-      REACT_APP_CLOUDINARY_CLOUD_NAME: dc5tnb82m       # change
+      REACT_APP_CLOUDINARY_CLOUD_NAME: dc5tnb82m       
       REACT_APP_BACKEND_URL: http://localhost:8081  
     depends_on:
       - backend
@@ -14,7 +14,7 @@ services:
       - app-network
 
   backend:
-    image: akhilballa112/chat-app:backend-35      # change
+    image: akhilballa112/chat-app:backend-35      
     container_name: chat-backend
     restart: always
     ports:
