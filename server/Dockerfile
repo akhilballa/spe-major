@@ -21,6 +21,7 @@
 # # Start the app in development mode
 # CMD ["npm", "run", "start"] 
 
+
 FROM node:18-alpine
 
 WORKDIR /app
