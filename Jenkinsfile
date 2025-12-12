@@ -4,6 +4,9 @@ pipeline {
   environment {
     DOCKER_BIN = '/usr/local/bin/docker'
 
+    DOCKER_BUILDKIT = '1'
+    COMPOSE_DOCKER_CLI_BUILD = '1'
+
     DOCKER_REPO = 'akhilballa112'
     REPO_NAME   = 'chat-app'
 
