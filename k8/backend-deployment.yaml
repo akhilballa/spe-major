@@ -18,6 +18,9 @@ spec:
           image: akhilballa112/chat-app:backend
           imagePullPolicy: Always
           resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
             limits:
               memory: "128Mi"
               cpu: "500m"
@@ -25,6 +28,8 @@ spec:
             - name: http
               containerPort: 8080
           env:
+            - name: FRONTEND_URL
+              value: "http://localhost"
             - name: MONGODB_URI
               valueFrom:
                 secretKeyRef:

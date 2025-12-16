@@ -4,9 +4,6 @@ pipeline {
   environment {
     DOCKER_BIN = '/usr/local/bin/docker'
 
-    // DOCKER_BUILDKIT = '1'
-    // COMPOSE_DOCKER_CLI_BUILD = '1'
-
     DOCKER_REPO = 'akhilballa112'
     REPO_NAME   = 'chat-app'
 
@@ -63,7 +60,7 @@ JSON
 
           sh '''
             echo "Building frontend image: ${FRONTEND_IMAGE}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_IMAGE}" .
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build --build-arg REACT_APP_BASE_URL=http://localhost/api/v1 -t "${FRONTEND_IMAGE}" .
           '''
         }
       }
@@ -124,6 +121,3 @@ JSON
     }
   }
 }
-
-
-// khjbk,jb,j

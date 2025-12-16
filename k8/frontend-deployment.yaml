@@ -17,7 +17,17 @@ spec:
         - name: frontend
           image: akhilballa112/chat-app:frontend
           imagePullPolicy: Always
-          ports:
-            - containerPort: 80
+        ports:
+          - containerPort: 80
+        envFrom:
+          - configMapRef:
+              name: frontend-configmap
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
   
 
