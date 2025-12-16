@@ -60,7 +60,7 @@ JSON
 
           sh '''
             echo "Building frontend image: ${FRONTEND_IMAGE}"
-            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build -t "${FRONTEND_IMAGE}" .
+            "$DOCKER_BIN" --config "${DOCKER_BUILD_CONFIG}" build --build-arg REACT_APP_BASE_URL=http://localhost/api/v1 -t "${FRONTEND_IMAGE}" .
           '''
         }
       }
