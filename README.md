@@ -279,11 +279,4 @@ SPE Major Project
 
 ---
 
-## 📄 License
-
-This project is for **academic and learning purposes**.
-
----
-
-✅ *This README is intentionally detailed so it can be directly used in evaluations, viva, or project submissions.*
 
