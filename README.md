@@ -262,16 +262,6 @@ kubectl apply -f k8/
 
 ---
 
-## 📈 Future Enhancements
-
-- Typing indicators
-- Message read receipts
-- File & image sharing
-- Push notifications
-- End‑to‑end encryption
-
----
-
 ## 👨‍💻 Author
 
 **Akhil Balla**  
